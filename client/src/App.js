@@ -13,65 +13,70 @@ function App() {
   const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-
     const loadProvider = async () => {
-      if (provider) {
+      if (window.ethereum) {
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        setProvider(provider);
+
+        try {
+          await provider.send("eth_requestAccounts", []);
+          const accounts = await provider.listAccounts();
+          if (accounts.length > 0) {
+            setAccount(accounts[0]);
+          }
+        } catch (error) {
+          console.error("User denied account access:", error);
+        }
+
+        const signer = provider.getSigner();
+        const contractAddress = "0x27B21D32fB1b71ed56b6f610149e5FC0451b24f6"; // Update with your contract address
+        const contract = new ethers.Contract(contractAddress, Upload.abi, signer);
+        setContract(contract);
+
         window.ethereum.on("chainChanged", () => {
           window.location.reload();
         });
 
-        window.ethereum.on("accountsChanged", () => {
-          window.location.reload();
+        window.ethereum.on("accountsChanged", (accounts) => {
+          if (accounts.length === 0) {
+            console.log("No accounts connected");
+            setAccount("");
+          } else {
+            setAccount(accounts[0]);
+          }
         });
-        await provider.send("eth_requestAccounts", []);
-        const signer = provider.getSigner();
-        const address = await signer.getAddress();
-        setAccount(address);
-        let contractAddress = "Your Contract Address Here";
-
-        const contract = new ethers.Contract(
-          contractAddress,
-          Upload.abi,
-          signer
-        );
-        //console.log(contract);
-        setContract(contract);
-        setProvider(provider);
       } else {
-        console.error("Metamask is not installed");
+        console.error("MetaMask is not installed. Please install it.");
       }
     };
-    provider && loadProvider();
+
+    loadProvider();
   }, []);
+
   return (
-    <>
+    <div className="App">
+      <h1 style={{ color: "white" }}>Gdrive 3.0</h1>
+      <div className="bg"></div>
+      <div className="bg bg2"></div>
+      <div className="bg bg3"></div>
+
+      <p style={{ color: "white" }}>
+        Account: {account ? account : "Not connected"}
+      </p>
+
+      <FileUpload account={account} provider={provider} contract={contract} />
+      <Display contract={contract} account={account} />
+
       {!modalOpen && (
         <button className="share" onClick={() => setModalOpen(true)}>
           Share
         </button>
       )}
+
       {modalOpen && (
-        <Modal setModalOpen={setModalOpen} contract={contract}></Modal>
+        <Modal setModalOpen={setModalOpen} contract={contract} />
       )}
-
-      <div className="App">
-        <h1 style={{ color: "white" }}>Gdrive 3.0</h1>
-        <div class="bg"></div>
-        <div class="bg bg2"></div>
-        <div class="bg bg3"></div>
-
-        <p style={{ color: "white" }}>
-          Account : {account ? account : "Not connected"}
-        </p>
-        <FileUpload
-          account={account}
-          provider={provider}
-          contract={contract}
-        ></FileUpload>
-        <Display contract={contract} account={account}></Display>
-      </div>
-    </>
+    </div>
   );
 }
 
